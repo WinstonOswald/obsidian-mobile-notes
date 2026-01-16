@@ -605,7 +605,7 @@ function saveNoteContent() {
 }
 
 // Export to JSON
-function exportToJSON() {
+async function exportToJSON() {
     const exportData = {
         hierarchyText: hierarchyInput.value,
         notes: prepareNotesForExport(state.notes),
@@ -614,17 +614,38 @@ function exportToJSON() {
 
     const jsonStr = JSON.stringify(exportData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const fileName = `obsidian-notes-${Date.now()}.json`;
 
+    // Try Web Share API first (better on mobile - lets you choose location!)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName)] })) {
+        try {
+            const file = new File([blob], fileName, { type: 'application/json' });
+            await navigator.share({
+                files: [file],
+                title: 'Obsidian Notes Export',
+                text: 'Export from mobile note creator'
+            });
+            showStatus('Shared successfully!', 'success');
+            return;
+        } catch (err) {
+            // User cancelled or share failed, fall back to download
+            if (err.name !== 'AbortError') {
+                console.error('Share failed:', err);
+            }
+        }
+    }
+
+    // Fallback: traditional download
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `obsidian-notes-${Date.now()}.json`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    showStatus('Exported! Save to iCloud/Google Drive.', 'success');
+    showStatus('Downloaded! Check Downloads folder.', 'success');
 }
 
 // Prepare notes for export
