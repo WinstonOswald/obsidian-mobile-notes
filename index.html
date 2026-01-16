@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Obsidian Note Creator - Mobile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            padding-bottom: 80px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .section {
+            padding: 15px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .section-header h2 {
+            font-size: 1.2em;
+            color: #333;
+        }
+
+        .hint {
+            color: #666;
+            font-size: 0.85em;
+            margin-bottom: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 150px;
+            line-height: 1.6;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .note-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .note-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-item.has-content {
+            border-left-color: #4caf50;
+        }
+
+        .note-item.has-warning {
+            border-left-color: #e67e22;
+            background: #fff8f0;
+        }
+
+        .note-level-1 { margin-left: 15px; }
+        .note-level-2 { margin-left: 30px; }
+        .note-level-3 { margin-left: 45px; }
+        .note-level-4 { margin-left: 60px; }
+        .note-level-5 { margin-left: 75px; }
+
+        .note-title {
+            flex: 1;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .note-path {
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .edit-indicator {
+            color: #4caf50;
+            font-size: 0.9em;
+        }
+
+        .warning-indicator {
+            color: #e67e22;
+            font-size: 0.9em;
+        }
+
+        .empty-state {
+            color: #999;
+            text-align: center;
+            padding: 30px;
+            font-style: italic;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            margin: auto;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.2em;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 2em;
+            color: #999;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .form-group input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 200px;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        /* Fixed bottom bar */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+        }
+
+        .bottom-bar .btn {
+            margin: 0;
+            flex: 1;
+        }
+
+        .status-msg {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status-msg.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-msg.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 Note Creator</h1>
+            <p class="subtitle">Create notes on mobile, export for desktop</p>
+        </header>
+
+        <div class="section">
+            <div class="section-header">
+                <h2>Note Hierarchy</h2>
+            </div>
+            <p class="hint">Use spaces to indent (2 spaces = 1 level)</p>
+            <textarea
+                id="hierarchyInput"
+                placeholder="Project Planning&#10;  Requirements&#10;  Design&#10;    UI Mockups&#10;    Database Schema&#10;  Implementation&#10;Development Notes"
+                spellcheck="false"
+            ></textarea>
+            <button id="parseBtn" class="btn btn-primary">Parse Structure</button>
+        </div>
+
+        <div class="section" id="noteSection" style="display: none;">
+            <div class="section-header">
+                <h2>Notes</h2>
+            </div>
+            <div id="noteStructure" class="note-list">
+                <p class="empty-state">Parse your hierarchy to see notes...</p>
+            </div>
+        </div>
+
+        <div id="statusMsg"></div>
+    </div>
+
+    <div class="bottom-bar" id="bottomBar" style="display: none;">
+        <button id="loadBtn" class="btn btn-secondary">Load</button>
+        <button id="saveBtn" class="btn btn-success">Export</button>
+    </div>
+
+    <!-- Edit Note Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="editModalTitle">Edit Note</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="noteAliases">Aliases (comma-separated):</label>
+                    <input type="text" id="noteAliases" placeholder="alias1, alias2, alias3" />
+                </div>
+                <div class="form-group">
+                    <label for="noteContent">Content:</label>
+                    <textarea id="noteContent" placeholder="Add content for this note..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveNoteBtn" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// State management
+const state = {
+    notes: [],
+    noteContents: new Map(),
+    noteAliases: new Map()
+};
+
+// DOM Elements
+const hierarchyInput = document.getElementById('hierarchyInput');
+const parseBtn = document.getElementById('parseBtn');
+const noteSection = document.getElementById('noteSection');
+const noteStructure = document.getElementById('noteStructure');
+const bottomBar = document.getElementById('bottomBar');
+const saveBtn = document.getElementById('saveBtn');
+const loadBtn = document.getElementById('loadBtn');
+const editModal = document.getElementById('editModal');
+const editModalTitle = document.getElementById('editModalTitle');
+const noteContent = document.getElementById('noteContent');
+const noteAliases = document.getElementById('noteAliases');
+const saveNoteBtn = document.getElementById('saveNoteBtn');
+const statusMsg = document.getElementById('statusMsg');
+
+let currentEditingNote = null;
+
+// Load saved state from localStorage
+function loadFromLocalStorage() {
+    const saved = localStorage.getItem('obsidian-notes-mobile');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            hierarchyInput.value = data.hierarchyText || '';
+            if (data.notes) {
+                state.notes = data.notes;
+                state.noteContents = new Map(data.noteContents || []);
+                state.noteAliases = new Map(data.noteAliases || []);
+                renderNoteStructure();
+                noteSection.style.display = 'block';
+                bottomBar.style.display = 'flex';
+            }
+        } catch (e) {
+            console.error('Error loading saved data:', e);
+        }
+    }
+}
+
+// Save state to localStorage
+function saveToLocalStorage() {
+    const data = {
+        hierarchyText: hierarchyInput.value,
+        notes: state.notes,
+        noteContents: Array.from(state.noteContents.entries()),
+        noteAliases: Array.from(state.noteAliases.entries())
+    };
+    localStorage.setItem('obsidian-notes-mobile', JSON.stringify(data));
+}
+
+// Event Listeners
+parseBtn.addEventListener('click', parseHierarchy);
+saveBtn.addEventListener('click', exportToJSON);
+loadBtn.addEventListener('click', importFromJSON);
+saveNoteBtn.addEventListener('click', saveNoteContent);
+
+document.querySelectorAll('.close-btn').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(editModal));
+});
+
+window.addEventListener('click', (e) => {
+    if (e.target === editModal) closeModal(editModal);
+});
+
+// Initialize
+loadFromLocalStorage();
+
+// Parse hierarchy
+function parseHierarchy() {
+    const text = hierarchyInput.value.trim();
+    if (!text) {
+        showStatus('Please enter some note titles!', 'error');
+        return;
+    }
+
+    const lines = text.split('\n').filter(line => line.trim());
+    state.notes = [];
+    state.noteContents.clear();
+    state.noteAliases.clear();
+    const stack = [];
+
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const validation = validateNoteTitle(trimmed);
+
+        const indentMatch = line.match(/^(\s*)/);
+        const indent = indentMatch ? indentMatch[1] : '';
+        const spaceCount = (indent.match(/ /g) || []).length;
+        const tabCount = (indent.match(/\t/g) || []).length;
+        const level = tabCount + spaceCount;
+
+        const note = {
+            title: trimmed,
+            level: level,
+            path: '',
+            parent: null,
+            children: [],
+            hasWarning: !validation.valid
+        };
+
+        while (stack.length > level) {
+            stack.pop();
+        }
+
+        if (stack.length > 0) {
+            note.parent = stack[stack.length - 1];
+            note.parent.children.push(note);
+            note.path = `${note.parent.path}/${sanitizeFileName(note.title)}`;
+        } else {
+            note.path = sanitizeFileName(note.title);
+        }
+
+        stack.push(note);
+
+        if (level === 0) {
+            state.notes.push(note);
+        }
+    });
+
+    renderNoteStructure();
+    noteSection.style.display = 'block';
+    bottomBar.style.display = 'flex';
+    saveToLocalStorage();
+    showStatus('Hierarchy parsed! Tap notes to add content.', 'success');
+}
+
+// Validate note title
+function validateNoteTitle(title) {
+    const invalidChars = /[#^[\]|\\/:]/;
+    if (invalidChars.test(title)) {
+        return {
+            valid: false,
+            message: 'Contains invalid characters: # ^ [ ] | \\ / :'
+        };
+    }
+    return { valid: true };
+}
+
+// Sanitize filename
+function sanitizeFileName(name) {
+    return name
+        .replace(/[#^[\]|\\/:]/g, '–')
+        .replace(/^\.+|\.+$/g, '')
+        .trim();
+}
+
+// Render note structure
+function renderNoteStructure() {
+    noteStructure.innerHTML = '';
+
+    if (state.notes.length === 0) {
+        noteStructure.innerHTML = '<p class="empty-state">Parse your hierarchy to see notes...</p>';
+        return;
+    }
+
+    function renderNote(note) {
+        const div = document.createElement('div');
+        div.className = `note-item note-level-${note.level}`;
+
+        if (state.noteContents.has(note.path)) {
+            div.classList.add('has-content');
+        }
+        if (note.hasWarning) {
+            div.classList.add('has-warning');
+        }
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'note-title';
+        titleSpan.textContent = note.title;
+
+        const indicatorSpan = document.createElement('span');
+        if (state.noteContents.has(note.path)) {
+            indicatorSpan.className = 'edit-indicator';
+            indicatorSpan.textContent = '✓';
+        } else if (note.hasWarning) {
+            indicatorSpan.className = 'warning-indicator';
+            indicatorSpan.textContent = '⚠';
+        }
+
+        div.appendChild(titleSpan);
+        div.appendChild(indicatorSpan);
+
+        div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openNoteEditor(note);
+        });
+
+        noteStructure.appendChild(div);
+
+        note.children.forEach(child => renderNote(child));
+    }
+
+    state.notes.forEach(note => renderNote(note));
+}
+
+// Open note editor
+function openNoteEditor(note) {
+    currentEditingNote = note;
+    editModalTitle.textContent = note.title;
+    noteContent.value = state.noteContents.get(note.path) || '';
+
+    const aliases = state.noteAliases.get(note.path) || [];
+    noteAliases.value = aliases.join(', ');
+
+    openModal(editModal);
+    noteAliases.focus();
+}
+
+// Save note content
+function saveNoteContent() {
+    if (!currentEditingNote) return;
+
+    const content = noteContent.value.trim();
+    if (content) {
+        state.noteContents.set(currentEditingNote.path, content);
+    } else {
+        state.noteContents.delete(currentEditingNote.path);
+    }
+
+    const aliasesInput = noteAliases.value.trim();
+    if (aliasesInput) {
+        const aliases = aliasesInput.split(',').map(a => a.trim()).filter(a => a);
+        state.noteAliases.set(currentEditingNote.path, aliases);
+    } else {
+        state.noteAliases.delete(currentEditingNote.path);
+    }
+
+    renderNoteStructure();
+    closeModal(editModal);
+    saveToLocalStorage();
+    showStatus('Note saved!', 'success');
+}
+
+// Export to JSON
+function exportToJSON() {
+    const exportData = {
+        hierarchyText: hierarchyInput.value,
+        notes: prepareNotesForExport(state.notes),
+        timestamp: new Date().toISOString()
+    };
+
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `obsidian-notes-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showStatus('Exported! Save to iCloud/Google Drive.', 'success');
+}
+
+// Prepare notes for export
+function prepareNotesForExport(notes) {
+    return notes.map(note => prepareNoteRecursive(note));
+}
+
+function prepareNoteRecursive(note) {
+    const aliases = state.noteAliases.get(note.path) || [];
+    return {
+        title: note.title,
+        sanitizedTitle: sanitizeFileName(note.title),
+        content: state.noteContents.get(note.path) || '',
+        aliases: aliases,
+        path: note.path,
+        children: note.children.map(child => prepareNoteRecursive(child))
+    };
+}
+
+// Import from JSON
+function importFromJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+
+                hierarchyInput.value = data.hierarchyText || '';
+                state.notes = data.notes || [];
+
+                // Reconstruct maps and parent references
+                reconstructNoteStructure(state.notes, null);
+
+                renderNoteStructure();
+                noteSection.style.display = 'block';
+                bottomBar.style.display = 'flex';
+                saveToLocalStorage();
+                showStatus('Imported successfully!', 'success');
+            } catch (error) {
+                showStatus('Error importing file: ' + error.message, 'error');
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    input.click();
+}
+
+// Reconstruct note structure from imported data
+function reconstructNoteStructure(notes, parent) {
+    notes.forEach(note => {
+        note.parent = parent;
+
+        // Add level based on parent
+        if (parent) {
+            note.level = parent.level + 1;
+        } else {
+            note.level = 0;
+        }
+
+        // Restore content and aliases to maps
+        if (note.content) {
+            state.noteContents.set(note.path, note.content);
+        }
+        if (note.aliases && note.aliases.length > 0) {
+            state.noteAliases.set(note.path, note.aliases);
+        }
+
+        // Recursively process children
+        if (note.children && note.children.length > 0) {
+            reconstructNoteStructure(note.children, note);
+        }
+    });
+}
+
+// Modal functions
+function openModal(modal) {
+    modal.classList.add('active');
+}
+
+function closeModal(modal) {
+    modal.classList.remove('active');
+}
+
+// Show status message
+function showStatus(message, type) {
+    statusMsg.innerHTML = `<div class="status-msg ${type}">${message}</div>`;
+    setTimeout(() => {
+        statusMsg.innerHTML = '';
+    }, 3000);
+}
+</script>
+</body>
+</html>
