@@ -4,7 +4,7 @@ Create hierarchical note structures on your phone for Obsidian vault.
 
 ## Usage
 
-Visit the app: [https://winstocalude.github.io/obsidian-mobile-notes](https://winstocalude.github.io/obsidian-mobile-notes)
+Visit the app: https://winstonoswald.github.io/obsidian-mobile-notes/
 
 1. Type your note hierarchy (use spaces for indentation)
 2. Tap "Parse Structure"
@@ -22,4 +22,3 @@ Visit the app: [https://winstocalude.github.io/obsidian-mobile-notes](https://wi
 
 ---
 
-Created with Claude Code
