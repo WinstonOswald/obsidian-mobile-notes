@@ -313,10 +313,10 @@
             <div class="section-header">
                 <h2>Note Hierarchy</h2>
             </div>
-            <p class="hint">Use spaces to indent (2 spaces = 1 level)</p>
+            <p class="hint">Use bullets (-, *, +), numbers (1., 2.), or indent with spaces. Press Enter to continue lists.</p>
             <textarea
                 id="hierarchyInput"
-                placeholder="Project Planning&#10;  Requirements&#10;  Design&#10;    UI Mockups&#10;    Database Schema&#10;  Implementation&#10;Development Notes"
+                placeholder="Project Planning&#10;- Requirements&#10;- Design&#10;  - UI Mockups&#10;  - Database Schema&#10;- Implementation&#10;&#10;1. First Task&#10;2. Second Task&#10;3. Third Task"
                 spellcheck="false"
             ></textarea>
             <button id="parseBtn" class="btn btn-primary">Parse Structure</button>
@@ -496,6 +496,78 @@ const debouncedAutoSaveNote = debounce(autoSaveCurrentNote, 800);
 noteContent.addEventListener('input', debouncedAutoSaveNote);
 noteAliases.addEventListener('input', debouncedAutoSaveNote);
 
+// Smart list continuation on Enter key
+function handleListContinuation(e, textarea) {
+    if (e.key !== 'Enter') return;
+
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = textarea.value.substring(0, cursorPos);
+    const lines = textBeforeCursor.split('\n');
+    const currentLine = lines[lines.length - 1];
+
+    // Check for bullet points (-, *, +)
+    const bulletMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
+    if (bulletMatch) {
+        const [, indent, bullet, content] = bulletMatch;
+
+        // If the line has no content (just the bullet), exit list mode
+        if (!content.trim()) {
+            e.preventDefault();
+            // Remove the empty bullet and just insert a newline
+            const beforeBullet = textarea.value.substring(0, cursorPos - currentLine.length);
+            const afterCursor = textarea.value.substring(cursorPos);
+            textarea.value = beforeBullet + '\n' + afterCursor;
+            textarea.selectionStart = textarea.selectionEnd = beforeBullet.length + 1;
+            return;
+        }
+
+        // Continue the list with the same bullet
+        e.preventDefault();
+        const newLine = `\n${indent}${bullet} `;
+        const beforeCursor = textarea.value.substring(0, cursorPos);
+        const afterCursor = textarea.value.substring(cursorPos);
+        textarea.value = beforeCursor + newLine + afterCursor;
+        textarea.selectionStart = textarea.selectionEnd = cursorPos + newLine.length;
+
+        // Trigger auto-save
+        textarea.dispatchEvent(new Event('input'));
+        return;
+    }
+
+    // Check for numbered lists (1., 2., etc.)
+    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+    if (numberMatch) {
+        const [, indent, number, content] = numberMatch;
+
+        // If the line has no content (just the number), exit list mode
+        if (!content.trim()) {
+            e.preventDefault();
+            const beforeNumber = textarea.value.substring(0, cursorPos - currentLine.length);
+            const afterCursor = textarea.value.substring(cursorPos);
+            textarea.value = beforeNumber + '\n' + afterCursor;
+            textarea.selectionStart = textarea.selectionEnd = beforeNumber.length + 1;
+            return;
+        }
+
+        // Continue the list with the next number
+        e.preventDefault();
+        const nextNumber = parseInt(number) + 1;
+        const newLine = `\n${indent}${nextNumber}. `;
+        const beforeCursor = textarea.value.substring(0, cursorPos);
+        const afterCursor = textarea.value.substring(cursorPos);
+        textarea.value = beforeCursor + newLine + afterCursor;
+        textarea.selectionStart = textarea.selectionEnd = cursorPos + newLine.length;
+
+        // Trigger auto-save
+        textarea.dispatchEvent(new Event('input'));
+        return;
+    }
+}
+
+// Add list continuation to both textareas
+hierarchyInput.addEventListener('keydown', (e) => handleListContinuation(e, hierarchyInput));
+noteContent.addEventListener('keydown', (e) => handleListContinuation(e, noteContent));
+
 // Initialize
 loadFromLocalStorage();
 
@@ -517,7 +589,11 @@ function parseHierarchy() {
         const trimmed = line.trim();
         if (!trimmed) return;
 
-        const validation = validateNoteTitle(trimmed);
+        // Remove bullet points (-, *, +) and numbered lists (1., 2., etc.)
+        const cleanedTitle = trimmed.replace(/^[-*+]\s+/, '') // Remove bullet points
+                                    .replace(/^\d+\.\s+/, ''); // Remove numbered lists
+
+        const validation = validateNoteTitle(cleanedTitle);
 
         const indentMatch = line.match(/^(\s*)/);
         const indent = indentMatch ? indentMatch[1] : '';
@@ -526,7 +602,7 @@ function parseHierarchy() {
         const level = tabCount + spaceCount;
 
         const note = {
-            title: trimmed,
+            title: cleanedTitle,
             level: level,
             path: '',
             parent: null,
