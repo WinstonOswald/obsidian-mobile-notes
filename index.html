@@ -387,6 +387,38 @@ const statusMsg = document.getElementById('statusMsg');
 
 let currentEditingNote = null;
 
+// Debounce function for auto-save
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Auto-save function with visual feedback
+function autoSave() {
+    saveToLocalStorage();
+    // Optional: Show a subtle save indicator
+    const saveIndicator = document.createElement('div');
+    saveIndicator.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 8px 16px; border-radius: 6px; font-size: 0.9em; z-index: 2000; opacity: 0; transition: opacity 0.3s;';
+    saveIndicator.textContent = '✓ Saved';
+    document.body.appendChild(saveIndicator);
+
+    setTimeout(() => saveIndicator.style.opacity = '1', 10);
+    setTimeout(() => {
+        saveIndicator.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(saveIndicator), 300);
+    }, 1500);
+}
+
+// Create debounced auto-save (saves 800ms after last keystroke)
+const debouncedAutoSave = debounce(autoSave, 800);
+
 // Load saved state from localStorage
 function loadFromLocalStorage() {
     const saved = localStorage.getItem('obsidian-notes-mobile');
@@ -432,6 +464,37 @@ document.querySelectorAll('.close-btn').forEach(btn => {
 window.addEventListener('click', (e) => {
     if (e.target === editModal) closeModal(editModal);
 });
+
+// Auto-save listeners
+hierarchyInput.addEventListener('input', debouncedAutoSave);
+
+// Auto-save for note content and aliases (when editing a note)
+function autoSaveCurrentNote() {
+    if (!currentEditingNote) return;
+
+    const content = noteContent.value.trim();
+    if (content) {
+        state.noteContents.set(currentEditingNote.path, content);
+    } else {
+        state.noteContents.delete(currentEditingNote.path);
+    }
+
+    const aliasesInput = noteAliases.value.trim();
+    if (aliasesInput) {
+        const aliases = aliasesInput.split(',').map(a => a.trim()).filter(a => a);
+        state.noteAliases.set(currentEditingNote.path, aliases);
+    } else {
+        state.noteAliases.delete(currentEditingNote.path);
+    }
+
+    renderNoteStructure();
+    autoSave();
+}
+
+const debouncedAutoSaveNote = debounce(autoSaveCurrentNote, 800);
+
+noteContent.addEventListener('input', debouncedAutoSaveNote);
+noteAliases.addEventListener('input', debouncedAutoSaveNote);
 
 // Initialize
 loadFromLocalStorage();
