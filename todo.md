@@ -6,6 +6,8 @@
 - [ ] save to new folder (folder name is the item, sub folder of a folder name which is the date) with one click ("save"), with a separate option to save to a specific path
 - [ ] cross links
 - [ ] patterning format of note content
+- [ ] fix typing slowness (especially with larger text content)
+- [ ] word count
 
 ## Completed Features
 
