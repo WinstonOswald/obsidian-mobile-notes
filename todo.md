@@ -8,6 +8,7 @@
 - [ ] patterning format of note content
 - [ ] fix typing slowness (especially with larger text content)
 - [ ] word count
+- [ ] allowing a note to have multiple super notes
 
 ## Completed Features
 
