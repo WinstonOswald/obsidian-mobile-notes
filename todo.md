@@ -9,6 +9,9 @@
 - [ ] fix typing slowness (especially with larger text content)
 - [ ] word count
 - [ ] allowing a note to have multiple super notes
+- [ ] auto saving on desktop
+- [ ] remembering text on close on desktop
+- [ ] desktop side to git
 
 ## Completed Features
 
