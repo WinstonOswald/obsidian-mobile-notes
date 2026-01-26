@@ -300,6 +300,22 @@
             background: #f8d7da;
             color: #721c24;
         }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .button-group .btn {
+            margin: 0;
+            flex: 1;
+        }
+
+        .btn-small {
+            padding: 10px;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -313,12 +329,16 @@
             <div class="section-header">
                 <h2>Note Hierarchy</h2>
             </div>
-            <p class="hint">Use bullets (-, *, +), numbers (1., 2.), or indent with spaces. Press Enter to continue lists.</p>
+            <p class="hint">Use bullets (-, *, +), numbers (1., 2.), or indent with spaces. Press Enter to continue lists. Use buttons below to indent/unindent list items.</p>
             <textarea
                 id="hierarchyInput"
                 placeholder="Project Planning&#10;- Requirements&#10;- Design&#10;  - UI Mockups&#10;  - Database Schema&#10;- Implementation&#10;&#10;1. First Task&#10;2. Second Task&#10;3. Third Task"
                 spellcheck="false"
             ></textarea>
+            <div class="button-group">
+                <button id="unindentBtn" class="btn btn-secondary btn-small">← Unindent</button>
+                <button id="indentBtn" class="btn btn-secondary btn-small">Indent →</button>
+            </div>
             <button id="parseBtn" class="btn btn-primary">Parse Structure</button>
         </div>
 
@@ -354,6 +374,10 @@
                 <div class="form-group">
                     <label for="noteContent">Content:</label>
                     <textarea id="noteContent" placeholder="Add content for this note..."></textarea>
+                    <div class="button-group">
+                        <button id="noteUnindentBtn" class="btn btn-secondary btn-small">← Unindent</button>
+                        <button id="noteIndentBtn" class="btn btn-secondary btn-small">Indent →</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -373,6 +397,8 @@ const state = {
 // DOM Elements
 const hierarchyInput = document.getElementById('hierarchyInput');
 const parseBtn = document.getElementById('parseBtn');
+const indentBtn = document.getElementById('indentBtn');
+const unindentBtn = document.getElementById('unindentBtn');
 const noteSection = document.getElementById('noteSection');
 const noteStructure = document.getElementById('noteStructure');
 const bottomBar = document.getElementById('bottomBar');
@@ -382,6 +408,8 @@ const editModal = document.getElementById('editModal');
 const editModalTitle = document.getElementById('editModalTitle');
 const noteContent = document.getElementById('noteContent');
 const noteAliases = document.getElementById('noteAliases');
+const noteIndentBtn = document.getElementById('noteIndentBtn');
+const noteUnindentBtn = document.getElementById('noteUnindentBtn');
 const saveNoteBtn = document.getElementById('saveNoteBtn');
 const statusMsg = document.getElementById('statusMsg');
 
@@ -451,11 +479,55 @@ function saveToLocalStorage() {
     localStorage.setItem('obsidian-notes-mobile', JSON.stringify(data));
 }
 
+// Mobile-friendly indent/unindent functions
+function indentCurrentLine(textarea, increase = true) {
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = textarea.value.substring(0, cursorPos);
+    const textAfterCursor = textarea.value.substring(cursorPos);
+    const lines = textBeforeCursor.split('\n');
+    const currentLine = lines[lines.length - 1];
+
+    // Check if we're on a bullet or numbered list item
+    const bulletMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
+    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+
+    if (bulletMatch || numberMatch) {
+        const match = bulletMatch || numberMatch;
+        const [, currentIndent, marker, content] = match;
+        const indentSize = 2; // 2 spaces per indent level
+        
+        if (increase) {
+            // Increase indentation
+            const newIndent = currentIndent + '  '; // Add 2 spaces
+            const newLine = `${newIndent}${marker} ${content}`;
+            const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+            textarea.value = beforeLine + newLine + textAfterCursor;
+            textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+        } else {
+            // Decrease indentation
+            if (currentIndent.length >= indentSize) {
+                const newIndent = currentIndent.slice(indentSize);
+                const newLine = `${newIndent}${marker} ${content}`;
+                const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+                textarea.value = beforeLine + newLine + textAfterCursor;
+                textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+            }
+        }
+
+        // Trigger auto-save
+        textarea.dispatchEvent(new Event('input'));
+    }
+}
+
 // Event Listeners
 parseBtn.addEventListener('click', parseHierarchy);
 saveBtn.addEventListener('click', exportToJSON);
 loadBtn.addEventListener('click', importFromJSON);
 saveNoteBtn.addEventListener('click', saveNoteContent);
+indentBtn.addEventListener('click', () => indentCurrentLine(hierarchyInput, true)); // Increase indentation
+unindentBtn.addEventListener('click', () => indentCurrentLine(hierarchyInput, false)); // Decrease indentation
+noteIndentBtn.addEventListener('click', () => indentCurrentLine(noteContent, true)); // Increase indentation
+noteUnindentBtn.addEventListener('click', () => indentCurrentLine(noteContent, false)); // Decrease indentation
 
 document.querySelectorAll('.close-btn').forEach(btn => {
     btn.addEventListener('click', () => closeModal(editModal));
@@ -495,6 +567,50 @@ const debouncedAutoSaveNote = debounce(autoSaveCurrentNote, 800);
 
 noteContent.addEventListener('input', debouncedAutoSaveNote);
 noteAliases.addEventListener('input', debouncedAutoSaveNote);
+
+// Handle Tab/Shift+Tab for indenting/unindenting lists
+function handleListIndentation(e, textarea) {
+    if (e.key !== 'Tab') return;
+
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = textarea.value.substring(0, cursorPos);
+    const textAfterCursor = textarea.value.substring(cursorPos);
+    const lines = textBeforeCursor.split('\n');
+    const currentLine = lines[lines.length - 1];
+
+    // Check if we're on a bullet or numbered list item
+    const bulletMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
+    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+
+    if (bulletMatch || numberMatch) {
+        e.preventDefault();
+        
+        const match = bulletMatch || numberMatch;
+        const [, currentIndent, marker, content] = match;
+        const indentSize = 2; // 2 spaces per indent level
+        
+        if (e.shiftKey) {
+            // Shift+Tab: Decrease indentation
+            if (currentIndent.length >= indentSize) {
+                const newIndent = currentIndent.slice(indentSize);
+                const newLine = `${newIndent}${marker} ${content}`;
+                const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+                textarea.value = beforeLine + newLine + textAfterCursor;
+                textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+            }
+        } else {
+            // Tab: Increase indentation
+            const newIndent = currentIndent + '  '; // Add 2 spaces
+            const newLine = `${newIndent}${marker} ${content}`;
+            const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+            textarea.value = beforeLine + newLine + textAfterCursor;
+            textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+        }
+
+        // Trigger auto-save
+        textarea.dispatchEvent(new Event('input'));
+    }
+}
 
 // Smart list continuation on Enter key
 function handleListContinuation(e, textarea) {
@@ -564,9 +680,15 @@ function handleListContinuation(e, textarea) {
     }
 }
 
-// Add list continuation to both textareas
-hierarchyInput.addEventListener('keydown', (e) => handleListContinuation(e, hierarchyInput));
-noteContent.addEventListener('keydown', (e) => handleListContinuation(e, noteContent));
+// Add list continuation and indentation to both textareas
+hierarchyInput.addEventListener('keydown', (e) => {
+    handleListIndentation(e, hierarchyInput);
+    handleListContinuation(e, hierarchyInput);
+});
+noteContent.addEventListener('keydown', (e) => {
+    handleListIndentation(e, noteContent);
+    handleListContinuation(e, noteContent);
+});
 
 // Initialize
 loadFromLocalStorage();
@@ -579,27 +701,56 @@ function parseHierarchy() {
         return;
     }
 
-    const lines = text.split('\n').filter(line => line.trim());
+    const lines = text.split('\n');
     state.notes = [];
     state.noteContents.clear();
     state.noteAliases.clear();
     const stack = [];
 
     lines.forEach((line, index) => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
+        // Skip completely empty lines
+        if (!line.trim()) return;
 
-        // Remove bullet points (-, *, +) and numbered lists (1., 2., etc.)
-        const cleanedTitle = trimmed.replace(/^[-*+]\s+/, '') // Remove bullet points
-                                    .replace(/^\d+\.\s+/, ''); // Remove numbered lists
-
-        const validation = validateNoteTitle(cleanedTitle);
-
+        // Match indentation (spaces/tabs before any content)
         const indentMatch = line.match(/^(\s*)/);
         const indent = indentMatch ? indentMatch[1] : '';
-        const spaceCount = (indent.match(/ /g) || []).length;
-        const tabCount = (indent.match(/\t/g) || []).length;
-        const level = tabCount + spaceCount;
+        
+        // Match bullet points or numbered lists
+        const bulletMatch = line.match(/^(\s*)([-*+])\s+(.*)$/);
+        const numberMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+        
+        let cleanedTitle = '';
+        let level = 0;
+        
+        if (bulletMatch) {
+            // Bullet list item: calculate level from spaces before bullet
+            const [, spacesBeforeBullet, bullet, content] = bulletMatch;
+            cleanedTitle = content.trim();
+            // Count spaces/tabs before the bullet marker
+            const spaceCount = (spacesBeforeBullet.match(/ /g) || []).length;
+            const tabCount = (spacesBeforeBullet.match(/\t/g) || []).length;
+            level = tabCount + spaceCount; // 1 space = 1 level (original behavior)
+        } else if (numberMatch) {
+            // Numbered list item: calculate level from spaces before number
+            const [, spacesBeforeNumber, number, content] = numberMatch;
+            cleanedTitle = content.trim();
+            // Count spaces/tabs before the number marker
+            const spaceCount = (spacesBeforeNumber.match(/ /g) || []).length;
+            const tabCount = (spacesBeforeNumber.match(/\t/g) || []).length;
+            level = tabCount + spaceCount; // 1 space = 1 level (original behavior)
+        } else {
+            // Plain text line: use existing logic
+            const trimmed = line.trim();
+            cleanedTitle = trimmed;
+            const spaceCount = (indent.match(/ /g) || []).length;
+            const tabCount = (indent.match(/\t/g) || []).length;
+            level = tabCount + spaceCount; // 1 space = 1 level (original behavior)
+        }
+
+        // Skip if title is empty after cleaning
+        if (!cleanedTitle) return;
+
+        const validation = validateNoteTitle(cleanedTitle);
 
         const note = {
             title: cleanedTitle,
