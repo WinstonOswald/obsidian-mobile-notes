@@ -316,30 +316,6 @@
             padding: 10px;
             font-size: 0.9em;
         }
-
-        /* Floating toolbar that appears above keyboard (optional enhancement) */
-        .floating-toolbar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            border-top: 1px solid #e0e0e0;
-            padding: 8px;
-            display: none;
-            z-index: 10000;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-        }
-
-        .floating-toolbar.active {
-            display: flex;
-            gap: 10px;
-        }
-
-        .floating-toolbar .btn {
-            margin: 0;
-            flex: 1;
-        }
     </style>
 </head>
 <body>
@@ -381,12 +357,6 @@
     <div class="bottom-bar" id="bottomBar" style="display: none;">
         <button id="loadBtn" class="btn btn-secondary">Load</button>
         <button id="saveBtn" class="btn btn-success">Export</button>
-    </div>
-
-    <!-- Floating toolbar for indent/unindent (appears above keyboard) -->
-    <div id="floatingToolbar" class="floating-toolbar">
-        <button id="toolbarUnindentBtn" class="btn btn-secondary btn-small">← Unindent</button>
-        <button id="toolbarIndentBtn" class="btn btn-secondary btn-small">Indent →</button>
     </div>
 
     <!-- Edit Note Modal -->
@@ -442,9 +412,6 @@ const noteIndentBtn = document.getElementById('noteIndentBtn');
 const noteUnindentBtn = document.getElementById('noteUnindentBtn');
 const saveNoteBtn = document.getElementById('saveNoteBtn');
 const statusMsg = document.getElementById('statusMsg');
-const floatingToolbar = document.getElementById('floatingToolbar');
-const toolbarIndentBtn = document.getElementById('toolbarIndentBtn');
-const toolbarUnindentBtn = document.getElementById('toolbarUnindentBtn');
 
 let currentEditingNote = null;
 
@@ -603,57 +570,6 @@ noteUnindentBtn.addEventListener('click', (e) => {
     indentCurrentLine(noteContent, false);
 });
 
-// Show/hide floating toolbar when textareas are focused (optional enhancement)
-let currentActiveTextarea = null;
-
-function showFloatingToolbar(textarea) {
-    currentActiveTextarea = textarea;
-    floatingToolbar.classList.add('active');
-}
-
-function hideFloatingToolbar() {
-    currentActiveTextarea = null;
-    floatingToolbar.classList.remove('active');
-}
-
-hierarchyInput.addEventListener('focus', () => showFloatingToolbar(hierarchyInput));
-hierarchyInput.addEventListener('blur', () => {
-    // Delay hiding to allow button clicks
-    setTimeout(() => {
-        if (document.activeElement !== hierarchyInput && document.activeElement !== noteContent) {
-            hideFloatingToolbar();
-        }
-    }, 200);
-});
-
-noteContent.addEventListener('focus', () => showFloatingToolbar(noteContent));
-noteContent.addEventListener('blur', () => {
-    // Delay hiding to allow button clicks
-    setTimeout(() => {
-        if (document.activeElement !== hierarchyInput && document.activeElement !== noteContent) {
-            hideFloatingToolbar();
-        }
-    }, 200);
-});
-
-// Floating toolbar buttons (duplicate functionality for convenience)
-toolbarIndentBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (currentActiveTextarea) {
-        indentCurrentLine(currentActiveTextarea, true);
-        currentActiveTextarea.focus();
-    }
-});
-
-toolbarUnindentBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (currentActiveTextarea) {
-        indentCurrentLine(currentActiveTextarea, false);
-        currentActiveTextarea.focus();
-    }
-});
 
 document.querySelectorAll('.close-btn').forEach(btn => {
     btn.addEventListener('click', () => closeModal(editModal));
