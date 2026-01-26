@@ -316,6 +316,30 @@
             padding: 10px;
             font-size: 0.9em;
         }
+
+        /* Floating toolbar that appears above keyboard */
+        .floating-toolbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 8px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .floating-toolbar.active {
+            display: flex;
+            gap: 10px;
+        }
+
+        .floating-toolbar .btn {
+            margin: 0;
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -329,16 +353,12 @@
             <div class="section-header">
                 <h2>Note Hierarchy</h2>
             </div>
-            <p class="hint">Use bullets (-, *, +), numbers (1., 2.), or indent with spaces. Press Enter to continue lists. Use buttons below to indent/unindent list items.</p>
+            <p class="hint">Use bullets (-, *, +), numbers (1., 2.), or indent with spaces. Press Enter to continue lists. Use toolbar buttons to indent/unindent list items.</p>
             <textarea
                 id="hierarchyInput"
                 placeholder="Project Planning&#10;- Requirements&#10;- Design&#10;  - UI Mockups&#10;  - Database Schema&#10;- Implementation&#10;&#10;1. First Task&#10;2. Second Task&#10;3. Third Task"
                 spellcheck="false"
             ></textarea>
-            <div class="button-group">
-                <button id="unindentBtn" class="btn btn-secondary btn-small">← Unindent</button>
-                <button id="indentBtn" class="btn btn-secondary btn-small">Indent →</button>
-            </div>
             <button id="parseBtn" class="btn btn-primary">Parse Structure</button>
         </div>
 
@@ -359,6 +379,12 @@
         <button id="saveBtn" class="btn btn-success">Export</button>
     </div>
 
+    <!-- Floating toolbar for indent/unindent (appears above keyboard) -->
+    <div id="floatingToolbar" class="floating-toolbar">
+        <button id="toolbarUnindentBtn" class="btn btn-secondary btn-small">← Unindent</button>
+        <button id="toolbarIndentBtn" class="btn btn-secondary btn-small">Indent →</button>
+    </div>
+
     <!-- Edit Note Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
@@ -374,10 +400,6 @@
                 <div class="form-group">
                     <label for="noteContent">Content:</label>
                     <textarea id="noteContent" placeholder="Add content for this note..."></textarea>
-                    <div class="button-group">
-                        <button id="noteUnindentBtn" class="btn btn-secondary btn-small">← Unindent</button>
-                        <button id="noteIndentBtn" class="btn btn-secondary btn-small">Indent →</button>
-                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -408,10 +430,11 @@ const editModal = document.getElementById('editModal');
 const editModalTitle = document.getElementById('editModalTitle');
 const noteContent = document.getElementById('noteContent');
 const noteAliases = document.getElementById('noteAliases');
-const noteIndentBtn = document.getElementById('noteIndentBtn');
-const noteUnindentBtn = document.getElementById('noteUnindentBtn');
 const saveNoteBtn = document.getElementById('saveNoteBtn');
 const statusMsg = document.getElementById('statusMsg');
+const floatingToolbar = document.getElementById('floatingToolbar');
+const toolbarIndentBtn = document.getElementById('toolbarIndentBtn');
+const toolbarUnindentBtn = document.getElementById('toolbarUnindentBtn');
 
 let currentEditingNote = null;
 
@@ -481,6 +504,9 @@ function saveToLocalStorage() {
 
 // Mobile-friendly indent/unindent functions
 function indentCurrentLine(textarea, increase = true) {
+    // Prevent keyboard from closing
+    textarea.focus();
+    
     const cursorPos = textarea.selectionStart;
     const textBeforeCursor = textarea.value.substring(0, cursorPos);
     const textAfterCursor = textarea.value.substring(cursorPos);
@@ -491,9 +517,8 @@ function indentCurrentLine(textarea, increase = true) {
     const bulletMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
     const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
 
-    if (bulletMatch || numberMatch) {
-        const match = bulletMatch || numberMatch;
-        const [, currentIndent, marker, content] = match;
+    if (bulletMatch) {
+        const [, currentIndent, marker, content] = bulletMatch;
         const indentSize = 2; // 2 spaces per indent level
         
         if (increase) {
@@ -514,8 +539,34 @@ function indentCurrentLine(textarea, increase = true) {
             }
         }
 
-        // Trigger auto-save
+        // Trigger auto-save and maintain focus
         textarea.dispatchEvent(new Event('input'));
+        setTimeout(() => textarea.focus(), 10);
+    } else if (numberMatch) {
+        const [, currentIndent, number, content] = numberMatch;
+        const indentSize = 2; // 2 spaces per indent level
+        
+        if (increase) {
+            // Increase indentation - preserve the period after the number
+            const newIndent = currentIndent + '  '; // Add 2 spaces
+            const newLine = `${newIndent}${number}. ${content}`;
+            const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+            textarea.value = beforeLine + newLine + textAfterCursor;
+            textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+        } else {
+            // Decrease indentation - preserve the period after the number
+            if (currentIndent.length >= indentSize) {
+                const newIndent = currentIndent.slice(indentSize);
+                const newLine = `${newIndent}${number}. ${content}`;
+                const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+                textarea.value = beforeLine + newLine + textAfterCursor;
+                textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+            }
+        }
+
+        // Trigger auto-save and maintain focus
+        textarea.dispatchEvent(new Event('input'));
+        setTimeout(() => textarea.focus(), 10);
     }
 }
 
@@ -524,10 +575,57 @@ parseBtn.addEventListener('click', parseHierarchy);
 saveBtn.addEventListener('click', exportToJSON);
 loadBtn.addEventListener('click', importFromJSON);
 saveNoteBtn.addEventListener('click', saveNoteContent);
-indentBtn.addEventListener('click', () => indentCurrentLine(hierarchyInput, true)); // Increase indentation
-unindentBtn.addEventListener('click', () => indentCurrentLine(hierarchyInput, false)); // Decrease indentation
-noteIndentBtn.addEventListener('click', () => indentCurrentLine(noteContent, true)); // Increase indentation
-noteUnindentBtn.addEventListener('click', () => indentCurrentLine(noteContent, false)); // Decrease indentation
+// Show/hide floating toolbar when textareas are focused
+let currentActiveTextarea = null;
+
+function showFloatingToolbar(textarea) {
+    currentActiveTextarea = textarea;
+    floatingToolbar.classList.add('active');
+}
+
+function hideFloatingToolbar() {
+    currentActiveTextarea = null;
+    floatingToolbar.classList.remove('active');
+}
+
+hierarchyInput.addEventListener('focus', () => showFloatingToolbar(hierarchyInput));
+hierarchyInput.addEventListener('blur', () => {
+    // Delay hiding to allow button clicks
+    setTimeout(() => {
+        if (document.activeElement !== hierarchyInput && document.activeElement !== noteContent) {
+            hideFloatingToolbar();
+        }
+    }, 200);
+});
+
+noteContent.addEventListener('focus', () => showFloatingToolbar(noteContent));
+noteContent.addEventListener('blur', () => {
+    // Delay hiding to allow button clicks
+    setTimeout(() => {
+        if (document.activeElement !== hierarchyInput && document.activeElement !== noteContent) {
+            hideFloatingToolbar();
+        }
+    }, 200);
+});
+
+// Floating toolbar buttons
+toolbarIndentBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (currentActiveTextarea) {
+        indentCurrentLine(currentActiveTextarea, true);
+        currentActiveTextarea.focus();
+    }
+});
+
+toolbarUnindentBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (currentActiveTextarea) {
+        indentCurrentLine(currentActiveTextarea, false);
+        currentActiveTextarea.focus();
+    }
+});
 
 document.querySelectorAll('.close-btn').forEach(btn => {
     btn.addEventListener('click', () => closeModal(editModal));
