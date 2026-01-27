@@ -1,0 +1,25 @@
+# Node dependencies
+node_modules/
+package-lock.json
+
+# iOS build files
+ios/App/Pods/
+ios/App/build/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+*.ipa
+*.dSYM.zip
+
+# macOS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Capacitor
+.capacitor/
+
+# IDE
+.vscode/
+.idea/

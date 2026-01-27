@@ -1,0 +1,22 @@
+{
+  "name": "obsidian-mobile-notes",
+  "version": "1.0.0",
+  "description": "Mobile note creator with hierarchy support",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'No build step needed - using plain HTML/CSS/JS'",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios"
+  },
+  "keywords": ["notes", "obsidian", "mobile", "ios"],
+  "author": "WinstonOswald",
+  "license": "MIT",
+  "devDependencies": {
+    "@capacitor/cli": "^5.5.1"
+  },
+  "dependencies": {
+    "@capacitor/core": "^5.5.1",
+    "@capacitor/ios": "^5.5.1",
+    "@capacitor/filesystem": "^5.1.4"
+  }
+}

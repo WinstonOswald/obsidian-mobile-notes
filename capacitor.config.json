@@ -1,0 +1,16 @@
+{
+  "appId": "com.winstonoswald.obsidiannotes",
+  "appName": "Obsidian Notes",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "plugins": {
+    "Keyboard": {
+      "resize": "native",
+      "style": "dark",
+      "resizeOnFullScreen": true
+    }
+  }
+}
