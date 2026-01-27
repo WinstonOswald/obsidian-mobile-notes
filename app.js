@@ -361,12 +361,22 @@ function handleListContinuation(e, textarea) {
 
         const indentLength = indent.length;
 
+        // If the line has no content (just the number), exit list mode
+        if (!content.trim()) {
+            e.preventDefault();
+            const beforeNumber = textarea.value.substring(0, cursorPos - currentLine.length);
+            const afterCursor = textarea.value.substring(cursorPos);
+            textarea.value = beforeNumber + '\n' + afterCursor;
+            textarea.selectionStart = textarea.selectionEnd = beforeNumber.length + 1;
+            return;
+        }
+
         // Find the next number for this hierarchy level
         // Start at 1 by default (for new sub-lists)
         let nextNumber = 1;
 
-        // Look backwards through previous lines (excluding current) to find the last number at this indent level
-        for (let i = lines.length - 2; i >= 0; i--) {
+        // Look backwards through all previous lines INCLUDING current to find the last number at this indent level
+        for (let i = lines.length - 1; i >= 0; i--) {
             const line = lines[i];
             const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s*(.*)$/);
 
