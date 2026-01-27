@@ -308,23 +308,33 @@ function handleListContinuation(e, textarea) {
     if (numberMatch) {
         const [, indent, number, content] = numberMatch;
 
-        // If the line has no content, still continue numbering
-        if (!content.trim()) {
-            e.preventDefault();
-            const nextNumber = parseInt(number, 10) + 1;
-            const newLine = `\n${indent}${nextNumber}. `;
-            const beforeCursor = textarea.value.substring(0, cursorPos);
-            const afterCursor = textarea.value.substring(cursorPos);
-            textarea.value = beforeCursor + newLine + afterCursor;
-            textarea.selectionStart = textarea.selectionEnd = cursorPos + newLine.length;
+        const indentLength = indent.length;
+        const currentNumber = parseInt(number, 10);
 
-            // Trigger auto-save
-            textarea.dispatchEvent(new Event('input'));
-            return;
+        // Find the next number for this hierarchy level:
+        // - Prefer the most recent numbered item at the same indent
+        // - If none, use the closest shallower indent as the parent
+        let nextNumber = currentNumber + 1;
+
+        for (let i = lines.length - 2; i >= 0; i--) {
+            const line = lines[i];
+            const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s*(.*)$/);
+
+            if (lineNumberMatch) {
+                const [, lineIndent, lineNumber] = lineNumberMatch;
+                const lineIndentLength = lineIndent.length;
+
+                if (lineIndentLength === indentLength) {
+                    nextNumber = parseInt(lineNumber, 10) + 1;
+                    break;
+                }
+
+                if (lineIndentLength < indentLength) {
+                    nextNumber = parseInt(lineNumber, 10) + 1;
+                    break;
+                }
+            }
         }
-
-        // Continue numbering from the current item
-        const nextNumber = parseInt(number, 10) + 1;
 
         // Continue the list with the calculated number
         e.preventDefault();
