@@ -319,6 +319,9 @@
                 placeholder="Project Planning&#10;- Requirements&#10;- Design&#10;  - UI Mockups&#10;  - Database Schema&#10;- Implementation&#10;&#10;1. First Task&#10;2. Second Task&#10;3. Third Task"
                 spellcheck="false"
                 autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                data-form-type="other"
             ></textarea>
             <button id="parseBtn" class="btn btn-primary">Parse Structure</button>
         </div>
@@ -354,7 +357,7 @@
                 </div>
                 <div class="form-group">
                     <label for="noteContent">Content:</label>
-                    <textarea id="noteContent" placeholder="Add content for this note..." autocomplete="off"></textarea>
+                    <textarea id="noteContent" placeholder="Add content for this note..." autocomplete="off" autocorrect="off" autocapitalize="off" data-form-type="other"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -551,11 +554,12 @@ function handleListContinuation(e, textarea) {
         }
 
         // Find the next number based on the current indentation level
-        // Look backwards through previous lines to find the last number at this indent level
+        // Look backwards through previous lines (excluding current) to find the last number at this indent level
         const currentIndentLength = indent.length;
         let nextNumber = 1;
 
-        for (let i = lines.length - 1; i >= 0; i--) {
+        // Start at length - 2 to skip the current line we're on
+        for (let i = lines.length - 2; i >= 0; i--) {
             const lineMatch = lines[i].match(/^(\s*)(\d+)\.\s+/);
             if (lineMatch) {
                 const [, lineIndent, lineNumber] = lineMatch;
