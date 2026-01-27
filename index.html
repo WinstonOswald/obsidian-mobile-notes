@@ -318,6 +318,7 @@
                 id="hierarchyInput"
                 placeholder="Project Planning&#10;- Requirements&#10;- Design&#10;  - UI Mockups&#10;  - Database Schema&#10;- Implementation&#10;&#10;1. First Task&#10;2. Second Task&#10;3. Third Task"
                 spellcheck="false"
+                autocomplete="off"
             ></textarea>
             <button id="parseBtn" class="btn btn-primary">Parse Structure</button>
         </div>
@@ -353,7 +354,7 @@
                 </div>
                 <div class="form-group">
                     <label for="noteContent">Content:</label>
-                    <textarea id="noteContent" placeholder="Add content for this note..."></textarea>
+                    <textarea id="noteContent" placeholder="Add content for this note..." autocomplete="off"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -534,7 +535,7 @@ function handleListContinuation(e, textarea) {
         return;
     }
 
-    // Check for numbered lists (1., 2., etc.)
+    // Check for numbered lists (1., 2., etc.) - hierarchy-aware
     const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
     if (numberMatch) {
         const [, indent, number, content] = numberMatch;
@@ -549,9 +550,24 @@ function handleListContinuation(e, textarea) {
             return;
         }
 
-        // Continue the list with the next number
+        // Find the next number based on the current indentation level
+        // Look backwards through previous lines to find the last number at this indent level
+        const currentIndentLength = indent.length;
+        let nextNumber = 1;
+
+        for (let i = lines.length - 1; i >= 0; i--) {
+            const lineMatch = lines[i].match(/^(\s*)(\d+)\.\s+/);
+            if (lineMatch) {
+                const [, lineIndent, lineNumber] = lineMatch;
+                if (lineIndent.length === currentIndentLength) {
+                    nextNumber = parseInt(lineNumber) + 1;
+                    break;
+                }
+            }
+        }
+
+        // Continue the list with the next number at the same indent level
         e.preventDefault();
-        const nextNumber = parseInt(number) + 1;
         const newLine = `\n${indent}${nextNumber}. `;
         const beforeCursor = textarea.value.substring(0, cursorPos);
         const afterCursor = textarea.value.substring(cursorPos);
