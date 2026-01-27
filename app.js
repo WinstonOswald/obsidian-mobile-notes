@@ -96,16 +96,48 @@ function calculateNumberForIndent(lines, targetIndentLength) {
     let nextNumber = 1;
 
     // Look backwards through previous lines to find the last number at this indent level
+    // BUT if we hit a shallower indent first, reset to 1 (new hierarchy branch)
     for (let i = lines.length - 2; i >= 0; i--) {
+        const line = lines[i].trim();
+        if (!line) continue; // Skip empty lines
+
         const lineNumberMatch = lines[i].match(/^(\s*)(\d+)\.\s*(.*)$/);
+        const bulletMatch = lines[i].match(/^(\s*)([-*+])\s+(.*)$/);
+        const plainMatch = lines[i].match(/^(\s*)(.+)$/);
+
+        let lineIndentLength = 0;
 
         if (lineNumberMatch) {
             const [, lineIndent, lineNumber] = lineNumberMatch;
-            const lineIndentLength = lineIndent.length;
+            lineIndentLength = lineIndent.length;
 
-            // Only continue numbering if we find a previous item at the SAME indent level
+            // If we find a shallower indent, this is a new branch - reset to 1
+            if (lineIndentLength < targetIndentLength) {
+                nextNumber = 1;
+                break;
+            }
+
+            // If we find the same indent level, continue from that number
             if (lineIndentLength === targetIndentLength) {
                 nextNumber = parseInt(lineNumber, 10) + 1;
+                break;
+            }
+        } else if (bulletMatch) {
+            const [, lineIndent] = bulletMatch;
+            lineIndentLength = lineIndent.length;
+
+            // Hit a shallower bullet point - new branch
+            if (lineIndentLength < targetIndentLength) {
+                nextNumber = 1;
+                break;
+            }
+        } else if (plainMatch && line) {
+            const [, lineIndent] = plainMatch;
+            lineIndentLength = lineIndent.length;
+
+            // Hit a shallower non-list line - new branch
+            if (lineIndentLength < targetIndentLength) {
+                nextNumber = 1;
                 break;
             }
         }
@@ -376,17 +408,49 @@ function handleListContinuation(e, textarea) {
         let nextNumber = 1;
 
         // Look backwards through all previous lines INCLUDING current to find the last number at this indent level
+        // BUT if we hit a shallower indent first, reset to 1 (new hierarchy branch)
         for (let i = lines.length - 1; i >= 0; i--) {
             const line = lines[i];
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue; // Skip empty lines
+
             const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s*(.*)$/);
+            const bulletMatch = line.match(/^(\s*)([-*+])\s+(.*)$/);
+            const plainMatch = line.match(/^(\s*)(.+)$/);
+
+            let lineIndentLength = 0;
 
             if (lineNumberMatch) {
                 const [, lineIndent, lineNumber] = lineNumberMatch;
-                const lineIndentLength = lineIndent.length;
+                lineIndentLength = lineIndent.length;
 
-                // Only continue numbering if we find a previous item at the SAME indent level
+                // If we find a shallower indent, this is a new branch - reset to 1
+                if (lineIndentLength < indentLength) {
+                    nextNumber = 1;
+                    break;
+                }
+
+                // If we find the same indent level, continue from that number
                 if (lineIndentLength === indentLength) {
                     nextNumber = parseInt(lineNumber, 10) + 1;
+                    break;
+                }
+            } else if (bulletMatch) {
+                const [, lineIndent] = bulletMatch;
+                lineIndentLength = lineIndent.length;
+
+                // Hit a shallower bullet point - new branch
+                if (lineIndentLength < indentLength) {
+                    nextNumber = 1;
+                    break;
+                }
+            } else if (plainMatch && trimmedLine) {
+                const [, lineIndent] = plainMatch;
+                lineIndentLength = lineIndent.length;
+
+                // Hit a shallower non-list line - new branch
+                if (lineIndentLength < indentLength) {
+                    nextNumber = 1;
                     break;
                 }
             }
