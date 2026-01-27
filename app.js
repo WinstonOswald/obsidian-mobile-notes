@@ -318,8 +318,33 @@ function handleListContinuation(e, textarea) {
             return;
         }
 
-        // Continue numbering from the current line
-        const nextNumber = parseInt(number, 10) + 1;
+        // Find the next number for this indentation level
+        // Look backwards through all lines to find the last numbered item at the same indent level
+        let nextNumber = 1; // Default to 1 if no previous item found
+        const indentLength = indent.length;
+        
+        // Check all lines before the current one (in reverse)
+        for (let i = lines.length - 2; i >= 0; i--) {
+            const line = lines[i];
+            const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+            
+            if (lineNumberMatch) {
+                const [, lineIndent, lineNumber] = lineNumberMatch;
+                const lineIndentLength = lineIndent.length;
+                
+                // If we find a line at the same indent level, increment from it
+                if (lineIndentLength === indentLength) {
+                    nextNumber = parseInt(lineNumber) + 1;
+                    break;
+                }
+                // If we find a line at a shallower level, we're starting a new sub-list
+                // so we should use 1 (which is already set)
+                if (lineIndentLength < indentLength) {
+                    break;
+                }
+                // If we find a line at a deeper level, keep looking
+            }
+        }
 
         // Continue the list with the calculated number
         e.preventDefault();
