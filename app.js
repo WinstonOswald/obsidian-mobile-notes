@@ -91,10 +91,33 @@ function saveToLocalStorage() {
 }
 
 // Mobile-friendly indent/unindent functions
+// Helper function to calculate the correct number for a given indent level
+function calculateNumberForIndent(lines, targetIndentLength) {
+    let nextNumber = 1;
+
+    // Look backwards through previous lines to find the last number at this indent level
+    for (let i = lines.length - 2; i >= 0; i--) {
+        const lineNumberMatch = lines[i].match(/^(\s*)(\d+)\.\s*(.*)$/);
+
+        if (lineNumberMatch) {
+            const [, lineIndent, lineNumber] = lineNumberMatch;
+            const lineIndentLength = lineIndent.length;
+
+            // Only continue numbering if we find a previous item at the SAME indent level
+            if (lineIndentLength === targetIndentLength) {
+                nextNumber = parseInt(lineNumber, 10) + 1;
+                break;
+            }
+        }
+    }
+
+    return nextNumber;
+}
+
 function indentCurrentLine(textarea, increase = true) {
     // Prevent keyboard from closing
     textarea.focus();
-    
+
     const cursorPos = textarea.selectionStart;
     const textBeforeCursor = textarea.value.substring(0, cursorPos);
     const textAfterCursor = textarea.value.substring(cursorPos);
@@ -133,19 +156,21 @@ function indentCurrentLine(textarea, increase = true) {
     } else if (numberMatch) {
         const [, currentIndent, number, content] = numberMatch;
         const indentSize = 2; // 2 spaces per indent level
-        
+
         if (increase) {
-            // Increase indentation - preserve the period after the number
+            // Increase indentation - recalculate number for new indent level
             const newIndent = currentIndent + '  '; // Add 2 spaces
-            const newLine = `${newIndent}${number}. ${content}`;
+            const newNumber = calculateNumberForIndent(lines, newIndent.length);
+            const newLine = `${newIndent}${newNumber}. ${content}`;
             const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
             textarea.value = beforeLine + newLine + textAfterCursor;
             textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
         } else {
-            // Decrease indentation - preserve the period after the number
+            // Decrease indentation - recalculate number for new indent level
             if (currentIndent.length >= indentSize) {
                 const newIndent = currentIndent.slice(indentSize);
-                const newLine = `${newIndent}${number}. ${content}`;
+                const newNumber = calculateNumberForIndent(lines, newIndent.length);
+                const newLine = `${newIndent}${newNumber}. ${content}`;
                 const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
                 textarea.value = beforeLine + newLine + textAfterCursor;
                 textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
@@ -237,27 +262,53 @@ function handleListIndentation(e, textarea) {
 
     if (bulletMatch || numberMatch) {
         e.preventDefault();
-        
-        const match = bulletMatch || numberMatch;
-        const [, currentIndent, marker, content] = match;
+
         const indentSize = 2; // 2 spaces per indent level
-        
-        if (e.shiftKey) {
-            // Shift+Tab: Decrease indentation
-            if (currentIndent.length >= indentSize) {
-                const newIndent = currentIndent.slice(indentSize);
+
+        if (bulletMatch) {
+            // Handle bullet lists
+            const [, currentIndent, marker, content] = bulletMatch;
+
+            if (e.shiftKey) {
+                // Shift+Tab: Decrease indentation
+                if (currentIndent.length >= indentSize) {
+                    const newIndent = currentIndent.slice(indentSize);
+                    const newLine = `${newIndent}${marker} ${content}`;
+                    const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+                    textarea.value = beforeLine + newLine + textAfterCursor;
+                    textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+                }
+            } else {
+                // Tab: Increase indentation
+                const newIndent = currentIndent + '  '; // Add 2 spaces
                 const newLine = `${newIndent}${marker} ${content}`;
                 const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
                 textarea.value = beforeLine + newLine + textAfterCursor;
                 textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
             }
-        } else {
-            // Tab: Increase indentation
-            const newIndent = currentIndent + '  '; // Add 2 spaces
-            const newLine = `${newIndent}${marker} ${content}`;
-            const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
-            textarea.value = beforeLine + newLine + textAfterCursor;
-            textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+        } else if (numberMatch) {
+            // Handle numbered lists - recalculate number for new indent level
+            const [, currentIndent, number, content] = numberMatch;
+
+            if (e.shiftKey) {
+                // Shift+Tab: Decrease indentation
+                if (currentIndent.length >= indentSize) {
+                    const newIndent = currentIndent.slice(indentSize);
+                    const newNumber = calculateNumberForIndent(lines, newIndent.length);
+                    const newLine = `${newIndent}${newNumber}. ${content}`;
+                    const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+                    textarea.value = beforeLine + newLine + textAfterCursor;
+                    textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+                }
+            } else {
+                // Tab: Increase indentation
+                const newIndent = currentIndent + '  '; // Add 2 spaces
+                const newNumber = calculateNumberForIndent(lines, newIndent.length);
+                const newLine = `${newIndent}${newNumber}. ${content}`;
+                const beforeLine = textBeforeCursor.slice(0, -currentLine.length);
+                textarea.value = beforeLine + newLine + textAfterCursor;
+                textarea.selectionStart = textarea.selectionEnd = beforeLine.length + newLine.length;
+            }
         }
 
         // Trigger auto-save
@@ -309,13 +360,12 @@ function handleListContinuation(e, textarea) {
         const [, indent, number, content] = numberMatch;
 
         const indentLength = indent.length;
-        const currentNumber = parseInt(number, 10);
 
-        // Find the next number for this hierarchy level:
-        // - Prefer the most recent numbered item at the same indent
-        // - If none, use the closest shallower indent as the parent
-        let nextNumber = currentNumber + 1;
+        // Find the next number for this hierarchy level
+        // Start at 1 by default (for new sub-lists)
+        let nextNumber = 1;
 
+        // Look backwards through previous lines (excluding current) to find the last number at this indent level
         for (let i = lines.length - 2; i >= 0; i--) {
             const line = lines[i];
             const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s*(.*)$/);
@@ -324,12 +374,8 @@ function handleListContinuation(e, textarea) {
                 const [, lineIndent, lineNumber] = lineNumberMatch;
                 const lineIndentLength = lineIndent.length;
 
+                // Only continue numbering if we find a previous item at the SAME indent level
                 if (lineIndentLength === indentLength) {
-                    nextNumber = parseInt(lineNumber, 10) + 1;
-                    break;
-                }
-
-                if (lineIndentLength < indentLength) {
                     nextNumber = parseInt(lineNumber, 10) + 1;
                     break;
                 }
