@@ -103,7 +103,7 @@ function indentCurrentLine(textarea, increase = true) {
 
     // Check if we're on a bullet or numbered list item
     const bulletMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
-    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s*(.*)$/);
 
     if (bulletMatch) {
         const [, currentIndent, marker, content] = bulletMatch;
@@ -233,7 +233,7 @@ function handleListIndentation(e, textarea) {
 
     // Check if we're on a bullet or numbered list item
     const bulletMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
-    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s*(.*)$/);
 
     if (bulletMatch || numberMatch) {
         e.preventDefault();
@@ -304,47 +304,27 @@ function handleListContinuation(e, textarea) {
     }
 
     // Check for numbered lists (1., 2., etc.)
-    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+    const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s*(.*)$/);
     if (numberMatch) {
         const [, indent, number, content] = numberMatch;
 
-        // If the line has no content (just the number), exit list mode
+        // If the line has no content, still continue numbering
         if (!content.trim()) {
             e.preventDefault();
-            const beforeNumber = textarea.value.substring(0, cursorPos - currentLine.length);
+            const nextNumber = parseInt(number, 10) + 1;
+            const newLine = `\n${indent}${nextNumber}. `;
+            const beforeCursor = textarea.value.substring(0, cursorPos);
             const afterCursor = textarea.value.substring(cursorPos);
-            textarea.value = beforeNumber + '\n' + afterCursor;
-            textarea.selectionStart = textarea.selectionEnd = beforeNumber.length + 1;
+            textarea.value = beforeCursor + newLine + afterCursor;
+            textarea.selectionStart = textarea.selectionEnd = cursorPos + newLine.length;
+
+            // Trigger auto-save
+            textarea.dispatchEvent(new Event('input'));
             return;
         }
 
-        // Find the next number for this indentation level
-        // Look backwards through all lines to find the last numbered item at the same indent level
-        let nextNumber = 1; // Default to 1 if no previous item found
-        const indentLength = indent.length;
-        
-        // Check all lines before the current one (in reverse)
-        for (let i = lines.length - 2; i >= 0; i--) {
-            const line = lines[i];
-            const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
-            
-            if (lineNumberMatch) {
-                const [, lineIndent, lineNumber] = lineNumberMatch;
-                const lineIndentLength = lineIndent.length;
-                
-                // If we find a line at the same indent level, increment from it
-                if (lineIndentLength === indentLength) {
-                    nextNumber = parseInt(lineNumber) + 1;
-                    break;
-                }
-                // If we find a line at a shallower level, we're starting a new sub-list
-                // so we should use 1 (which is already set)
-                if (lineIndentLength < indentLength) {
-                    break;
-                }
-                // If we find a line at a deeper level, keep looking
-            }
-        }
+        // Continue numbering from the current item
+        const nextNumber = parseInt(number, 10) + 1;
 
         // Continue the list with the calculated number
         e.preventDefault();
@@ -401,7 +381,7 @@ function parseHierarchy() {
         
         // Match bullet points or numbered lists
         const bulletMatch = line.match(/^(\s*)([-*+])\s+(.*)$/);
-        const numberMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+        const numberMatch = line.match(/^(\s*)(\d+)\.\s*(.*)$/);
         
         let cleanedTitle = '';
         let level = 0;
