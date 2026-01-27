@@ -239,13 +239,7 @@ noteUnindentBtn.addEventListener('click', (e) => {
 });
 
 
-document.querySelectorAll('.close-btn').forEach(btn => {
-    btn.addEventListener('click', () => closeModal(editModal));
-});
-
-window.addEventListener('click', (e) => {
-    if (e.target === editModal) closeModal(editModal);
-});
+// Close button handlers are set up in the Octopart section below
 
 // Auto-save listeners
 hierarchyInput.addEventListener('input', debouncedAutoSave);
@@ -848,3 +842,640 @@ function showStatus(message, type) {
         statusMsg.innerHTML = '';
     }, 3000);
 }
+
+// ==========================================
+// OCTOPART API INTEGRATION
+// ==========================================
+
+// Octopart State
+const octopartState = {
+    apiKey: localStorage.getItem('octopart-api-key') || '',
+    useDemoMode: localStorage.getItem('octopart-demo-mode') === 'true',
+    currentComponent: null,
+    searchResults: []
+};
+
+// Octopart DOM Elements
+const componentSearch = document.getElementById('componentSearch');
+const searchBtn = document.getElementById('searchBtn');
+const componentResults = document.getElementById('componentResults');
+const octopartSettingsBtn = document.getElementById('octopartSettingsBtn');
+const octopartSettingsModal = document.getElementById('octopartSettingsModal');
+const octopartApiKey = document.getElementById('octopartApiKey');
+const useDemoMode = document.getElementById('useDemoMode');
+const saveOctopartSettings = document.getElementById('saveOctopartSettings');
+const componentModal = document.getElementById('componentModal');
+const componentModalTitle = document.getElementById('componentModalTitle');
+const componentModalBody = document.getElementById('componentModalBody');
+const createComponentNote = document.getElementById('createComponentNote');
+
+// Demo component data for when no API key is available
+const demoComponents = {
+    'LM7805': {
+        mpn: 'LM7805CT',
+        manufacturer: 'Texas Instruments',
+        description: '3-Terminal Positive Voltage Regulator, 5V 1.5A Output',
+        category: 'Voltage Regulators',
+        specs: {
+            'Output Voltage': '5V',
+            'Output Current': '1.5A',
+            'Input Voltage': '7V - 25V',
+            'Package': 'TO-220',
+            'Operating Temp': '-40°C to 125°C',
+            'Dropout Voltage': '2V'
+        },
+        pricing: [
+            { distributor: 'Digi-Key', qty: 1, price: 0.72, stock: 15420 },
+            { distributor: 'Mouser', qty: 1, price: 0.69, stock: 8750 },
+            { distributor: 'Newark', qty: 10, price: 0.58, stock: 3200 }
+        ],
+        datasheets: ['https://www.ti.com/lit/ds/symlink/lm7805.pdf'],
+        octopartUrl: 'https://octopart.com/lm7805ct-texas+instruments-530748'
+    },
+    'ATMEGA328P': {
+        mpn: 'ATMEGA328P-PU',
+        manufacturer: 'Microchip Technology',
+        description: '8-bit AVR Microcontroller with 32KB Flash, Arduino Compatible',
+        category: 'Microcontrollers',
+        specs: {
+            'Core': 'AVR 8-bit',
+            'Flash Memory': '32KB',
+            'SRAM': '2KB',
+            'EEPROM': '1KB',
+            'Clock Speed': 'Up to 20MHz',
+            'I/O Pins': '23',
+            'Package': 'DIP-28',
+            'Operating Voltage': '1.8V - 5.5V'
+        },
+        pricing: [
+            { distributor: 'Digi-Key', qty: 1, price: 2.85, stock: 28500 },
+            { distributor: 'Mouser', qty: 1, price: 2.79, stock: 12300 },
+            { distributor: 'Arrow', qty: 25, price: 2.45, stock: 5600 }
+        ],
+        datasheets: ['https://ww1.microchip.com/downloads/en/DeviceDoc/ATmega328P-Complete.pdf'],
+        octopartUrl: 'https://octopart.com/atmega328p-pu-microchip-77760008'
+    },
+    'NE555': {
+        mpn: 'NE555P',
+        manufacturer: 'Texas Instruments',
+        description: 'Precision Timer IC, Single, 4.5V to 16V',
+        category: 'Timer ICs',
+        specs: {
+            'Timer Type': 'General Purpose',
+            'Timing Range': '1μs to hours',
+            'Supply Voltage': '4.5V - 16V',
+            'Output Current': '200mA',
+            'Package': 'DIP-8',
+            'Operating Temp': '0°C to 70°C'
+        },
+        pricing: [
+            { distributor: 'Digi-Key', qty: 1, price: 0.42, stock: 95000 },
+            { distributor: 'Mouser', qty: 1, price: 0.39, stock: 67000 },
+            { distributor: 'Newark', qty: 100, price: 0.28, stock: 45000 }
+        ],
+        datasheets: ['https://www.ti.com/lit/ds/symlink/ne555.pdf'],
+        octopartUrl: 'https://octopart.com/ne555p-texas+instruments-527418'
+    },
+    'ESP32': {
+        mpn: 'ESP32-WROOM-32E',
+        manufacturer: 'Espressif Systems',
+        description: 'WiFi & Bluetooth MCU Module, Dual-Core 240MHz, 4MB Flash',
+        category: 'Wireless Modules',
+        specs: {
+            'Core': 'Dual Xtensa LX6',
+            'Clock Speed': '240MHz',
+            'Flash': '4MB',
+            'WiFi': '802.11 b/g/n',
+            'Bluetooth': 'BLE 4.2',
+            'GPIO Pins': '34',
+            'Operating Voltage': '3.0V - 3.6V',
+            'Dimensions': '18mm x 25.5mm'
+        },
+        pricing: [
+            { distributor: 'Digi-Key', qty: 1, price: 2.90, stock: 42000 },
+            { distributor: 'Mouser', qty: 1, price: 2.85, stock: 28000 },
+            { distributor: 'LCSC', qty: 10, price: 2.35, stock: 156000 }
+        ],
+        datasheets: ['https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32e_datasheet_en.pdf'],
+        octopartUrl: 'https://octopart.com/esp32-wroom-32e-espressif+systems-100246230'
+    },
+    '2N2222': {
+        mpn: '2N2222A',
+        manufacturer: 'ON Semiconductor',
+        description: 'NPN General Purpose Transistor, 40V 600mA',
+        category: 'Transistors',
+        specs: {
+            'Type': 'NPN',
+            'Collector-Emitter Voltage': '40V',
+            'Collector Current': '600mA',
+            'Power Dissipation': '625mW',
+            'hFE (Gain)': '100 - 300',
+            'Package': 'TO-92',
+            'Transition Frequency': '300MHz'
+        },
+        pricing: [
+            { distributor: 'Digi-Key', qty: 1, price: 0.18, stock: 250000 },
+            { distributor: 'Mouser', qty: 1, price: 0.16, stock: 180000 },
+            { distributor: 'Newark', qty: 100, price: 0.08, stock: 95000 }
+        ],
+        datasheets: ['https://www.onsemi.com/pdf/datasheet/p2n2222a-d.pdf'],
+        octopartUrl: 'https://octopart.com/2n2222a-on+semiconductor-42203'
+    },
+    '1N4148': {
+        mpn: '1N4148',
+        manufacturer: 'Vishay',
+        description: 'Small Signal Fast Switching Diode, 100V 200mA',
+        category: 'Diodes',
+        specs: {
+            'Type': 'Small Signal',
+            'Reverse Voltage': '100V',
+            'Forward Current': '200mA',
+            'Forward Voltage': '1V @ 10mA',
+            'Recovery Time': '4ns',
+            'Package': 'DO-35'
+        },
+        pricing: [
+            { distributor: 'Digi-Key', qty: 1, price: 0.05, stock: 1200000 },
+            { distributor: 'Mouser', qty: 1, price: 0.04, stock: 890000 },
+            { distributor: 'LCSC', qty: 100, price: 0.01, stock: 5000000 }
+        ],
+        datasheets: ['https://www.vishay.com/docs/81857/1n4148.pdf'],
+        octopartUrl: 'https://octopart.com/1n4148-vishay-39459'
+    },
+    '10K': {
+        mpn: 'CFR-25JB-52-10K',
+        manufacturer: 'Yageo',
+        description: 'Carbon Film Resistor 10K Ohm 1/4W 5%',
+        category: 'Resistors',
+        specs: {
+            'Resistance': '10kΩ',
+            'Power Rating': '0.25W',
+            'Tolerance': '±5%',
+            'Temperature Coefficient': '±200ppm/°C',
+            'Package': 'Axial',
+            'Lead Spacing': '10mm'
+        },
+        pricing: [
+            { distributor: 'Digi-Key', qty: 1, price: 0.10, stock: 2500000 },
+            { distributor: 'Mouser', qty: 1, price: 0.08, stock: 1800000 },
+            { distributor: 'LCSC', qty: 100, price: 0.005, stock: 10000000 }
+        ],
+        datasheets: ['https://www.yageo.com/upload/media/product/products/datasheet/lr/YAGEO_LR_CFR_1.pdf'],
+        octopartUrl: 'https://octopart.com/cfr-25jb-52-10k-yageo-170919'
+    },
+    'STM32F103': {
+        mpn: 'STM32F103C8T6',
+        manufacturer: 'STMicroelectronics',
+        description: 'ARM Cortex-M3 MCU, 72MHz, 64KB Flash, 20KB SRAM (Blue Pill)',
+        category: 'Microcontrollers',
+        specs: {
+            'Core': 'ARM Cortex-M3',
+            'Clock Speed': '72MHz',
+            'Flash': '64KB',
+            'SRAM': '20KB',
+            'GPIO Pins': '37',
+            'ADC': '2x 12-bit',
+            'Package': 'LQFP-48',
+            'Operating Voltage': '2.0V - 3.6V'
+        },
+        pricing: [
+            { distributor: 'Digi-Key', qty: 1, price: 3.42, stock: 18500 },
+            { distributor: 'Mouser', qty: 1, price: 3.38, stock: 12000 },
+            { distributor: 'LCSC', qty: 10, price: 2.85, stock: 85000 }
+        ],
+        datasheets: ['https://www.st.com/resource/en/datasheet/stm32f103c8.pdf'],
+        octopartUrl: 'https://octopart.com/stm32f103c8t6-stmicroelectronics-20312179'
+    }
+};
+
+// Initialize Octopart settings
+function initOctopartSettings() {
+    octopartApiKey.value = octopartState.apiKey;
+    useDemoMode.checked = octopartState.useDemoMode;
+}
+
+// Save Octopart settings
+function saveOctopartSettingsHandler() {
+    octopartState.apiKey = octopartApiKey.value.trim();
+    octopartState.useDemoMode = useDemoMode.checked;
+
+    localStorage.setItem('octopart-api-key', octopartState.apiKey);
+    localStorage.setItem('octopart-demo-mode', octopartState.useDemoMode);
+
+    closeModal(octopartSettingsModal);
+    showStatus('Octopart settings saved!', 'success');
+}
+
+// Search for components
+async function searchComponents() {
+    const query = componentSearch.value.trim();
+    if (!query) {
+        showStatus('Please enter a part number to search', 'error');
+        return;
+    }
+
+    componentResults.innerHTML = '<div class="loading-spinner">Searching components...</div>';
+
+    // Check if we should use demo mode
+    const useDemo = octopartState.useDemoMode || !octopartState.apiKey;
+
+    if (useDemo) {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        searchDemoComponents(query);
+    } else {
+        await searchOctopartAPI(query);
+    }
+}
+
+// Search demo components
+function searchDemoComponents(query) {
+    const normalizedQuery = query.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const results = [];
+
+    for (const [key, component] of Object.entries(demoComponents)) {
+        const normalizedKey = key.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const normalizedMpn = component.mpn.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+        if (normalizedKey.includes(normalizedQuery) ||
+            normalizedMpn.includes(normalizedQuery) ||
+            normalizedQuery.includes(normalizedKey)) {
+            results.push({ ...component, isDemo: true });
+        }
+    }
+
+    // If no exact match, show all demo components as suggestions
+    if (results.length === 0) {
+        for (const component of Object.values(demoComponents)) {
+            results.push({ ...component, isDemo: true });
+        }
+    }
+
+    octopartState.searchResults = results;
+    renderSearchResults(results, true);
+}
+
+// Search Octopart API (GraphQL)
+async function searchOctopartAPI(query) {
+    const graphqlQuery = `
+        query SearchParts($q: String!) {
+            supSearchMpn(q: $q, limit: 10) {
+                hits
+                results {
+                    part {
+                        mpn
+                        manufacturer {
+                            name
+                        }
+                        shortDescription
+                        category {
+                            name
+                        }
+                        bestDatasheet {
+                            url
+                        }
+                        specs {
+                            attribute {
+                                name
+                            }
+                            displayValue
+                        }
+                        sellers(authorizedOnly: false) {
+                            company {
+                                name
+                            }
+                            offers {
+                                inventoryLevel
+                                prices {
+                                    quantity
+                                    price
+                                    currency
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    `;
+
+    try {
+        const response = await fetch('https://octopart.com/api/v4/endpoint', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${octopartState.apiKey}`
+            },
+            body: JSON.stringify({
+                query: graphqlQuery,
+                variables: { q: query }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.errors) {
+            throw new Error(data.errors[0].message);
+        }
+
+        const results = data.data.supSearchMpn.results.map(result => {
+            const part = result.part;
+            const specs = {};
+
+            if (part.specs) {
+                part.specs.forEach(spec => {
+                    specs[spec.attribute.name] = spec.displayValue;
+                });
+            }
+
+            const pricing = [];
+            if (part.sellers) {
+                part.sellers.slice(0, 5).forEach(seller => {
+                    if (seller.offers && seller.offers.length > 0) {
+                        const offer = seller.offers[0];
+                        if (offer.prices && offer.prices.length > 0) {
+                            pricing.push({
+                                distributor: seller.company.name,
+                                qty: offer.prices[0].quantity,
+                                price: offer.prices[0].price,
+                                stock: offer.inventoryLevel || 0
+                            });
+                        }
+                    }
+                });
+            }
+
+            return {
+                mpn: part.mpn,
+                manufacturer: part.manufacturer?.name || 'Unknown',
+                description: part.shortDescription || 'No description available',
+                category: part.category?.name || 'Components',
+                specs: specs,
+                pricing: pricing,
+                datasheets: part.bestDatasheet ? [part.bestDatasheet.url] : [],
+                octopartUrl: `https://octopart.com/search?q=${encodeURIComponent(part.mpn)}`,
+                isDemo: false
+            };
+        });
+
+        octopartState.searchResults = results;
+        renderSearchResults(results, false);
+
+    } catch (error) {
+        console.error('Octopart API Error:', error);
+        componentResults.innerHTML = `
+            <div class="empty-results">
+                <p>API Error: ${error.message}</p>
+                <p style="margin-top: 10px; font-size: 0.9em;">Falling back to demo mode...</p>
+            </div>
+        `;
+        // Fall back to demo mode
+        setTimeout(() => searchDemoComponents(query), 1000);
+    }
+}
+
+// Render search results
+function renderSearchResults(results, isDemo) {
+    if (results.length === 0) {
+        componentResults.innerHTML = '<div class="empty-results">No components found. Try a different search term.</div>';
+        return;
+    }
+
+    const demoBadge = isDemo ? '<span class="demo-badge">DEMO DATA</span>' : '';
+
+    componentResults.innerHTML = results.map((component, index) => `
+        <div class="component-card" data-index="${index}">
+            <div class="component-card-header">
+                <div>
+                    <div class="component-mpn">${escapeHtml(component.mpn)}${component.isDemo ? '<span class="demo-badge">DEMO</span>' : ''}</div>
+                    <div class="component-manufacturer">${escapeHtml(component.manufacturer)}</div>
+                </div>
+            </div>
+            <div class="component-description">${escapeHtml(component.description)}</div>
+            <div class="component-meta">
+                <span class="component-tag">${escapeHtml(component.category)}</span>
+                ${component.pricing.length > 0 ? `
+                    <span class="component-tag price">$${component.pricing[0].price.toFixed(2)}</span>
+                    <span class="component-tag ${component.pricing[0].stock > 0 ? 'stock' : 'out-of-stock'}">
+                        ${component.pricing[0].stock > 0 ? `${component.pricing[0].stock.toLocaleString()} in stock` : 'Out of stock'}
+                    </span>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    // Add click handlers
+    componentResults.querySelectorAll('.component-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const index = parseInt(card.dataset.index);
+            showComponentDetails(octopartState.searchResults[index]);
+        });
+    });
+}
+
+// Show component details modal
+function showComponentDetails(component) {
+    octopartState.currentComponent = component;
+    componentModalTitle.textContent = component.mpn;
+
+    const specsHtml = Object.keys(component.specs).length > 0 ? `
+        <div class="component-detail-section">
+            <h3>Specifications</h3>
+            <div class="spec-list">
+                ${Object.entries(component.specs).map(([key, value]) => `
+                    <div class="spec-item">
+                        <span class="spec-label">${escapeHtml(key)}</span>
+                        <span class="spec-value">${escapeHtml(value)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    ` : '';
+
+    const pricingHtml = component.pricing.length > 0 ? `
+        <div class="component-detail-section">
+            <h3>Pricing & Availability</h3>
+            <table class="price-table">
+                <thead>
+                    <tr>
+                        <th>Distributor</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${component.pricing.map(p => `
+                        <tr>
+                            <td>${escapeHtml(p.distributor)}</td>
+                            <td>${p.qty}+</td>
+                            <td>$${p.price.toFixed(2)}</td>
+                            <td>${p.stock.toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    ` : '';
+
+    const datasheetsHtml = component.datasheets.length > 0 ? `
+        <div class="component-detail-section">
+            <h3>Documentation</h3>
+            ${component.datasheets.map((url, i) => `
+                <a href="${escapeHtml(url)}" target="_blank" class="datasheet-link">📄 Datasheet${component.datasheets.length > 1 ? ` ${i + 1}` : ''}</a>
+            `).join('')}
+            <a href="${escapeHtml(component.octopartUrl)}" target="_blank" class="datasheet-link">🔗 View on Octopart</a>
+        </div>
+    ` : '';
+
+    componentModalBody.innerHTML = `
+        <div class="component-detail-section">
+            <h3>Overview</h3>
+            <p><strong>Manufacturer:</strong> ${escapeHtml(component.manufacturer)}</p>
+            <p><strong>Part Number:</strong> ${escapeHtml(component.mpn)}</p>
+            <p><strong>Category:</strong> ${escapeHtml(component.category)}</p>
+            <p style="margin-top: 10px;">${escapeHtml(component.description)}</p>
+            ${component.isDemo ? '<p style="margin-top: 10px;"><span class="demo-badge">DEMO DATA</span> This is sample data. Add an API key for real results.</p>' : ''}
+        </div>
+        ${specsHtml}
+        ${pricingHtml}
+        ${datasheetsHtml}
+    `;
+
+    openModal(componentModal);
+}
+
+// Create note from component
+function createNoteFromComponent() {
+    const component = octopartState.currentComponent;
+    if (!component) return;
+
+    // Create the note hierarchy text
+    const noteTitle = component.mpn;
+    const specsText = Object.entries(component.specs)
+        .map(([key, value]) => `  - ${key}: ${value}`)
+        .join('\n');
+
+    const pricingText = component.pricing
+        .map(p => `  - ${p.distributor}: $${p.price.toFixed(2)} (${p.stock.toLocaleString()} in stock)`)
+        .join('\n');
+
+    // Build the hierarchy
+    let hierarchyText = `${noteTitle}\n`;
+    hierarchyText += `- Overview\n`;
+
+    if (Object.keys(component.specs).length > 0) {
+        hierarchyText += `- Specifications\n`;
+    }
+
+    if (component.pricing.length > 0) {
+        hierarchyText += `- Pricing\n`;
+    }
+
+    if (component.datasheets.length > 0) {
+        hierarchyText += `- Documentation\n`;
+    }
+
+    // Add to the existing hierarchy or replace
+    const existingText = hierarchyInput.value.trim();
+    if (existingText) {
+        hierarchyInput.value = existingText + '\n\n' + hierarchyText;
+    } else {
+        hierarchyInput.value = hierarchyText;
+    }
+
+    // Parse the hierarchy
+    parseHierarchy();
+
+    // Now add content to each note
+    const basePath = sanitizeFileName(noteTitle);
+
+    // Overview content
+    const overviewContent = `**Manufacturer:** ${component.manufacturer}
+**Part Number:** ${component.mpn}
+**Category:** ${component.category}
+
+${component.description}
+
+${component.datasheets.length > 0 ? `**Datasheet:** [${component.mpn} Datasheet](${component.datasheets[0]})` : ''}
+**Octopart:** [View on Octopart](${component.octopartUrl})`;
+
+    state.noteContents.set(`${basePath}/Overview`, overviewContent);
+
+    // Specifications content
+    if (Object.keys(component.specs).length > 0) {
+        const specsContent = Object.entries(component.specs)
+            .map(([key, value]) => `- **${key}:** ${value}`)
+            .join('\n');
+        state.noteContents.set(`${basePath}/Specifications`, specsContent);
+    }
+
+    // Pricing content
+    if (component.pricing.length > 0) {
+        const pricingContent = `| Distributor | Qty | Price | Stock |
+|-------------|-----|-------|-------|
+${component.pricing.map(p => `| ${p.distributor} | ${p.qty}+ | $${p.price.toFixed(2)} | ${p.stock.toLocaleString()} |`).join('\n')}
+
+*Pricing data ${component.isDemo ? '(demo data)' : `retrieved ${new Date().toLocaleDateString()}`}*`;
+        state.noteContents.set(`${basePath}/Pricing`, pricingContent);
+    }
+
+    // Documentation content
+    if (component.datasheets.length > 0) {
+        const docsContent = `## Datasheets
+${component.datasheets.map((url, i) => `- [Datasheet${component.datasheets.length > 1 ? ` ${i + 1}` : ''}](${url})`).join('\n')}
+
+## External Links
+- [View on Octopart](${component.octopartUrl})
+- [Manufacturer Website](https://www.google.com/search?q=${encodeURIComponent(component.manufacturer + ' ' + component.mpn)})`;
+        state.noteContents.set(`${basePath}/Documentation`, docsContent);
+    }
+
+    // Re-render and save
+    renderNoteStructure();
+    saveToLocalStorage();
+    closeModal(componentModal);
+    showStatus(`Created notes for ${component.mpn}!`, 'success');
+}
+
+// Escape HTML helper
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Octopart Event Listeners
+searchBtn.addEventListener('click', searchComponents);
+componentSearch.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        searchComponents();
+    }
+});
+
+octopartSettingsBtn.addEventListener('click', () => {
+    initOctopartSettings();
+    openModal(octopartSettingsModal);
+});
+
+saveOctopartSettings.addEventListener('click', saveOctopartSettingsHandler);
+
+createComponentNote.addEventListener('click', createNoteFromComponent);
+
+// Close modals
+document.querySelectorAll('.close-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const modal = this.closest('.modal');
+        if (modal) closeModal(modal);
+    });
+});
+
+window.addEventListener('click', (e) => {
+    if (e.target === editModal) closeModal(editModal);
+    if (e.target === octopartSettingsModal) closeModal(octopartSettingsModal);
+    if (e.target === componentModal) closeModal(componentModal);
+});

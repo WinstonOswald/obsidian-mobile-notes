@@ -41,12 +41,67 @@
             </div>
         </div>
 
+        <div class="section">
+            <div class="section-header">
+                <h2>🔌 Component Lookup</h2>
+                <button id="octopartSettingsBtn" class="btn btn-secondary btn-icon" title="API Settings">⚙️</button>
+            </div>
+            <p class="hint">Search for electronic components via Octopart. Create notes with specs, pricing, and datasheets.</p>
+            <div class="search-container">
+                <input type="text" id="componentSearch" placeholder="Enter part number (e.g., LM7805, ATmega328P, NE555)" autocomplete="off" />
+                <button id="searchBtn" class="btn btn-primary btn-search">Search</button>
+            </div>
+            <div id="componentResults" class="component-results"></div>
+        </div>
+
         <div id="statusMsg"></div>
     </div>
 
     <div class="bottom-bar" id="bottomBar" style="display: none;">
         <button id="loadBtn" class="btn btn-secondary">Load</button>
         <button id="saveBtn" class="btn btn-success">Export</button>
+    </div>
+
+    <!-- Octopart Settings Modal -->
+    <div id="octopartSettingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Octopart API Settings</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="octopartApiKey">API Key (optional):</label>
+                    <input type="password" id="octopartApiKey" placeholder="Enter your Octopart API key" autocomplete="off" />
+                    <p class="hint" style="margin-top: 8px;">Get a free API key at <a href="https://octopart.com/api/home" target="_blank">octopart.com/api</a>. Without a key, demo data is shown.</p>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="useDemoMode" />
+                        Always use demo mode (sample data)
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveOctopartSettings" class="btn btn-primary">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Component Details Modal -->
+    <div id="componentModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="componentModalTitle">Component Details</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="componentModalBody">
+                <!-- Component details will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button id="createComponentNote" class="btn btn-success">Create Note</button>
+            </div>
+        </div>
     </div>
 
     <!-- Edit Note Modal -->
